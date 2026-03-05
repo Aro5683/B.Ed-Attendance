@@ -74,6 +74,11 @@ background:#2980b9;
 color:white;
 }
 
+.warning{
+color:red;
+font-size:12px;
+}
+
 </style>
 </head>
 
@@ -108,6 +113,275 @@ color:white;
 
 <tbody id="history"></tbody>
 
+</table>
+
+</div>
+
+<script>
+
+/* STUDENTS */
+
+const students=[
+"Akilan","Arockia Raj","Kavibharathi","Gangadevi",
+"Sowndharya","Srisakthi","Ajantha","Tamilarasi",
+"Abirami","Ayishwarya","Sivagamasundari",
+"Anitamary","Swetha","Divyabharathi","Varsha","Kiruthiga"
+]
+
+let attendance=JSON.parse(localStorage.getItem("attendance"))||[]
+let leaveCount=JSON.parse(localStorage.getItem("leaveCount"))||{}
+
+students.forEach(s=>{
+if(!leaveCount[s]) leaveCount[s]=0
+})
+
+let reportText=""
+
+const container=document.getElementById("students")
+
+/* CREATE STUDENT LIST */
+
+students.forEach(name=>{
+
+let div=document.createElement("div")
+
+div.className="student"
+
+div.innerHTML=`
+<span>${name} <span id="warn-${name}" class="warning"></span></span>
+
+<button id="btn-${name}" class="present" onclick="toggle('${name}')">
+Present
+</button>
+`
+
+container.appendChild(div)
+
+})
+
+/* TOGGLE ATTENDANCE */
+
+function toggle(name){
+
+let today=new Date().toLocaleDateString()
+
+let record=attendance.find(a=>a.name===name && a.date===today)
+
+let btn=document.getElementById("btn-"+name)
+
+if(record){
+
+if(record.status==="Present"){
+
+record.status="Absent"
+leaveCount[name]++
+
+btn.className="absent"
+btn.innerText="Absent"
+
+if(leaveCount[name]>3){
+document.getElementById("warn-"+name).innerText="⚠ Limit Exceeded"
+}
+
+}else{
+
+record.status="Present"
+leaveCount[name]--
+
+btn.className="present"
+btn.innerText="Present"
+
+}
+
+}else{
+
+attendance.push({
+name:name,
+date:today,
+status:"Absent"
+})
+
+leaveCount[name]++
+
+btn.className="absent"
+btn.innerText="Absent"
+
+}
+
+localStorage.setItem("attendance",JSON.stringify(attendance))
+localStorage.setItem("leaveCount",JSON.stringify(leaveCount))
+
+render()
+
+}
+
+/* RESET TODAY */
+
+function resetToday(){
+
+let today=new Date().toLocaleDateString()
+
+attendance=attendance.filter(a=>a.date!==today)
+
+students.forEach(name=>{
+
+let btn=document.getElementById("btn-"+name)
+
+btn.className="present"
+btn.innerText="Present"
+
+})
+
+localStorage.setItem("attendance",JSON.stringify(attendance))
+
+render()
+
+}
+
+/* RENDER HISTORY */
+
+function render(){
+
+let history=document.getElementById("history")
+
+history.innerHTML=""
+
+attendance.forEach(a=>{
+
+let tr=document.createElement("tr")
+
+tr.innerHTML=`
+<td>${a.date}</td>
+<td>${a.name}</td>
+<td>${a.status}</td>
+`
+
+history.appendChild(tr)
+
+})
+
+updateSummary()
+
+}
+
+/* SUMMARY */
+
+function updateSummary(){
+
+let today=new Date().toLocaleDateString()
+
+let todayData=attendance.filter(a=>a.date===today)
+
+let absent=todayData.filter(a=>a.status==="Absent").length
+
+let present=students.length-absent
+
+document.getElementById("summary").innerHTML=
+`Total: ${students.length} | Present: ${present} | Absent: ${absent}`
+
+}
+
+/* GENERATE REPORT */
+
+function generateReport(){
+
+let now=new Date()
+
+let today=now.toLocaleDateString()
+let time=now.toLocaleTimeString()
+let month=now.toLocaleString('default',{month:'long'})
+
+let todayData=attendance.filter(a=>a.date===today)
+
+let absentList=todayData.map(a=>a.name)
+
+let presentCount=students.length-absentList.length
+let absentCount=absentList.length
+
+let msg="📊 Attendance Report\n\n"
+
+msg+="Date : "+today+"\n"
+msg+="Time : "+time+"\n"
+msg+="Month : "+month+"\n\n"
+
+msg+="Total Students : "+students.length+"\n"
+msg+="Present : "+presentCount+"\n"
+msg+="Absent : "+absentCount+"\n\n"
+
+msg+="Absentees\n"
+msg+="----------------------\n"
+
+if(absentList.length===0){
+msg+="None\n"
+}else{
+absentList.forEach(name=>{
+msg+=name+" | Absent\n"
+})
+}
+
+msg+="\nLeave Remaining\n"
+msg+="----------------------\n"
+
+let warning=[]
+
+students.forEach(name=>{
+
+let used=leaveCount[name]||0
+let remaining=3-used
+
+msg+=name+" : "+remaining+"\n"
+
+if(remaining<0){
+warning.push(name)
+}
+
+})
+
+if(warning.length>0){
+
+msg+="\n⚠ Leave Limit Exceeded\n"
+
+warning.forEach(name=>{
+msg+=name+"\n"
+})
+
+}
+
+reportText=msg
+
+alert("Report Generated")
+
+}
+
+/* COPY REPORT */
+
+function copyReport(){
+
+if(reportText===""){
+alert("Generate report first")
+return
+}
+
+navigator.clipboard.writeText(reportText)
+
+alert("Report Copied")
+
+}
+
+/* OPEN WHATSAPP GROUP */
+
+function openGroup(){
+
+window.open("https://chat.whatsapp.com/K3yw8o9KfDqAZvm3NG1Wee")
+
+}
+
+render()
+
+</script>
+
+</body>
+</html>
 </table>
 
 </div>
