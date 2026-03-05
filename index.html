@@ -2,6 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Class Attendance</title>
 
 <style>
@@ -9,30 +10,39 @@
 body{
 font-family:Arial;
 background:#f2f4f7;
-padding:20px;
+margin:0;
+padding:10px;
 }
 
 .container{
-max-width:900px;
+max-width:600px;
 margin:auto;
 background:white;
-padding:20px;
+padding:15px;
 border-radius:10px;
-box-shadow:0 0 10px rgba(0,0,0,0.1);
+box-shadow:0 0 8px rgba(0,0,0,0.1);
+}
+
+h2{
+text-align:center;
+margin-top:0;
 }
 
 .student{
 display:flex;
 justify-content:space-between;
+align-items:center;
 padding:8px;
 border-bottom:1px solid #eee;
+font-size:14px;
 }
 
 button{
-padding:6px 12px;
+padding:8px 12px;
 border:none;
 border-radius:6px;
 cursor:pointer;
+font-size:14px;
 }
 
 .present{
@@ -45,22 +55,30 @@ background:#e74c3c;
 color:white;
 }
 
-.final{
+.controls{
+display:flex;
+flex-wrap:wrap;
+gap:6px;
+margin-top:10px;
+}
+
+.controls button{
+flex:1;
 background:#2980b9;
 color:white;
-margin-top:10px;
-margin-right:5px;
 }
 
 .summary{
-margin-top:20px;
+margin-top:12px;
 font-weight:bold;
+text-align:center;
 }
 
 table{
 width:100%;
 border-collapse:collapse;
-margin-top:20px;
+margin-top:15px;
+font-size:13px;
 }
 
 th,td{
@@ -76,7 +94,7 @@ color:white;
 
 .warning{
 color:red;
-font-size:12px;
+font-size:11px;
 }
 
 </style>
@@ -90,16 +108,16 @@ font-size:12px;
 
 <div id="students"></div>
 
-<br>
-
-<button class="final" onclick="generateReport()">Generate Report</button>
-<button class="final" onclick="copyReport()">Copy Report</button>
-<button class="final" onclick="openGroup()">Open WhatsApp Group</button>
-<button class="final" onclick="resetToday()">Reset Today</button>
+<div class="controls">
+<button onclick="generateReport()">Generate</button>
+<button onclick="copyReport()">Copy</button>
+<button onclick="openGroup()">WhatsApp</button>
+<button onclick="resetToday()">Reset</button>
+</div>
 
 <div class="summary" id="summary"></div>
 
-<h3>Attendance History</h3>
+<h3>History</h3>
 
 <table>
 
@@ -108,6 +126,255 @@ font-size:12px;
 <th>Date</th>
 <th>Name</th>
 <th>Status</th>
+</tr>
+</thead>
+
+<tbody id="history"></tbody>
+
+</table>
+
+</div>
+
+<script>
+
+/* STUDENTS */
+
+const students=[
+"Akilan","Arockia Raj","Kavibharathi","Gangadevi",
+"Sowndharya","Srisakthi","Ajantha","Tamilarasi",
+"Abirami","Ayishwarya","Sivagamasundari",
+"Anitamary","Swetha","Divyabharathi","Varsha","Kiruthiga"
+]
+
+let attendance=JSON.parse(localStorage.getItem("attendance"))||[]
+let leaveCount=JSON.parse(localStorage.getItem("leaveCount"))||{}
+
+students.forEach(s=>{
+if(!leaveCount[s]) leaveCount[s]=0
+})
+
+let reportText=""
+
+const container=document.getElementById("students")
+
+/* CREATE STUDENT LIST */
+
+students.forEach(name=>{
+
+let div=document.createElement("div")
+
+div.className="student"
+
+div.innerHTML=`
+<span>${name} <span id="warn-${name}" class="warning"></span></span>
+<button id="btn-${name}" class="present" onclick="toggle('${name}')">Present</button>
+`
+
+container.appendChild(div)
+
+})
+
+/* TOGGLE */
+
+function toggle(name){
+
+let today=new Date().toLocaleDateString()
+
+let record=attendance.find(a=>a.name===name && a.date===today)
+
+let btn=document.getElementById("btn-"+name)
+
+if(record){
+
+if(record.status==="Present"){
+
+record.status="Absent"
+leaveCount[name]++
+
+btn.className="absent"
+btn.innerText="Absent"
+
+if(leaveCount[name]>3){
+document.getElementById("warn-"+name).innerText="⚠ Limit"
+}
+
+}else{
+
+record.status="Present"
+leaveCount[name]--
+
+btn.className="present"
+btn.innerText="Present"
+
+}
+
+}else{
+
+attendance.push({
+name:name,
+date:today,
+status:"Absent"
+})
+
+leaveCount[name]++
+
+btn.className="absent"
+btn.innerText="Absent"
+
+}
+
+localStorage.setItem("attendance",JSON.stringify(attendance))
+localStorage.setItem("leaveCount",JSON.stringify(leaveCount))
+
+render()
+
+}
+
+/* RESET */
+
+function resetToday(){
+
+let today=new Date().toLocaleDateString()
+
+attendance=attendance.filter(a=>a.date!==today)
+
+students.forEach(name=>{
+let btn=document.getElementById("btn-"+name)
+btn.className="present"
+btn.innerText="Present"
+})
+
+localStorage.setItem("attendance",JSON.stringify(attendance))
+
+render()
+
+}
+
+/* RENDER */
+
+function render(){
+
+let history=document.getElementById("history")
+
+history.innerHTML=""
+
+attendance.forEach(a=>{
+
+let tr=document.createElement("tr")
+
+tr.innerHTML=`
+<td>${a.date}</td>
+<td>${a.name}</td>
+<td>${a.status}</td>
+`
+
+history.appendChild(tr)
+
+})
+
+updateSummary()
+
+}
+
+/* SUMMARY */
+
+function updateSummary(){
+
+let today=new Date().toLocaleDateString()
+
+let todayData=attendance.filter(a=>a.date===today)
+
+let absent=todayData.filter(a=>a.status==="Absent").length
+
+let present=students.length-absent
+
+document.getElementById("summary").innerHTML=
+`Total ${students.length} | Present ${present} | Absent ${absent}`
+
+}
+
+/* REPORT */
+
+function generateReport(){
+
+let now=new Date()
+
+let today=now.toLocaleDateString()
+let time=now.toLocaleTimeString()
+let month=now.toLocaleString('default',{month:'long'})
+
+let todayData=attendance.filter(a=>a.date===today)
+
+let absentList=todayData.map(a=>a.name)
+
+let presentCount=students.length-absentList.length
+
+let msg="📊 Attendance Report\n\n"
+
+msg+="Date: "+today+"\n"
+msg+="Time: "+time+"\n"
+msg+="Month: "+month+"\n\n"
+
+msg+="Total: "+students.length+"\n"
+msg+="Present: "+presentCount+"\n"
+msg+="Absent: "+absentList.length+"\n\n"
+
+msg+="Absentees\n"
+msg+="----------------\n"
+
+if(absentList.length===0){
+msg+="None\n"
+}else{
+
+absentList.forEach(name=>{
+
+msg+=name+" | Absent\n"
+
+let used=leaveCount[name]||0
+let remaining=3-used
+
+msg+="Leave Remaining: "+remaining+"\n"
+
+if(remaining<0){
+msg+="⚠ Leave Limit Exceeded\n"
+}
+
+msg+="\n"
+
+})
+
+}
+
+reportText=msg
+
+alert("Report Ready")
+
+}
+
+/* COPY */
+
+function copyReport(){
+
+navigator.clipboard.writeText(reportText)
+
+alert("Copied")
+
+}
+
+/* WHATSAPP */
+
+function openGroup(){
+
+window.open("https://chat.whatsapp.com/K3yw8o9KfDqAZvm3NG1Wee")
+
+}
+
+render()
+
+</script>
+
+</body>
+</html><th>Status</th>
 </tr>
 </thead>
 
