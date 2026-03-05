@@ -31,7 +31,6 @@ margin-top:0;
 .student{
 display:flex;
 justify-content:space-between;
-align-items:center;
 padding:8px;
 border-bottom:1px solid #eee;
 font-size:14px;
@@ -57,7 +56,6 @@ color:white;
 
 .controls{
 display:flex;
-flex-wrap:wrap;
 gap:6px;
 margin-top:10px;
 }
@@ -69,32 +67,9 @@ color:white;
 }
 
 .summary{
-margin-top:12px;
+margin-top:10px;
 font-weight:bold;
 text-align:center;
-}
-
-table{
-width:100%;
-border-collapse:collapse;
-margin-top:15px;
-font-size:13px;
-}
-
-th,td{
-border:1px solid #ddd;
-padding:6px;
-text-align:center;
-}
-
-th{
-background:#2980b9;
-color:white;
-}
-
-.warning{
-color:red;
-font-size:11px;
 }
 
 </style>
@@ -108,6 +83,239 @@ font-size:11px;
 
 <div id="students"></div>
 
+<div class="controls">
+<button onclick="sendReport()">Send Report</button>
+<button onclick="resetToday()">Reset Today</button>
+<button onclick="resetMonth()">Reset Month</button>
+</div>
+
+<div id="summary" class="summary"></div>
+
+</div>
+
+<script>
+
+/* STUDENTS */
+
+const students=[
+"Akilan","Arockia Raj","Kavibharathi","Gangadevi",
+"Sowndharya","Srisakthi","Ajantha","Tamilarasi",
+"Abirami","Ayishwarya","Sivagamasundari",
+"Anitamary","Swetha","Divyabharathi","Varsha","Kiruthiga","Sumithra"
+]
+
+/* AUTO MONTH RESET */
+
+let currentMonth=new Date().getMonth()
+
+let savedMonth=localStorage.getItem("attendanceMonth")
+
+let leaveCount=JSON.parse(localStorage.getItem("leaveCount"))||{}
+
+if(savedMonth===null){
+
+localStorage.setItem("attendanceMonth",currentMonth)
+
+}else if(parseInt(savedMonth)!==currentMonth){
+
+leaveCount={}
+students.forEach(s=>leaveCount[s]=0)
+
+localStorage.setItem("leaveCount",JSON.stringify(leaveCount))
+localStorage.setItem("attendanceMonth",currentMonth)
+
+}
+
+/* ATTENDANCE STORAGE */
+
+let attendance=JSON.parse(localStorage.getItem("attendance"))||[]
+
+students.forEach(s=>{
+if(!leaveCount[s]) leaveCount[s]=0
+})
+
+const container=document.getElementById("students")
+
+/* CREATE STUDENT LIST */
+
+students.forEach(name=>{
+
+let div=document.createElement("div")
+
+div.className="student"
+
+div.innerHTML=`
+<span>${name}</span>
+<button id="btn-${name}" class="present" onclick="toggle('${name}')">Present</button>
+`
+
+container.appendChild(div)
+
+})
+
+/* TOGGLE ATTENDANCE */
+
+function toggle(name){
+
+let today=new Date().toLocaleDateString()
+
+let record=attendance.find(a=>a.name===name && a.date===today)
+
+let btn=document.getElementById("btn-"+name)
+
+if(record){
+
+if(record.status==="Present"){
+
+record.status="Absent"
+leaveCount[name]++
+btn.className="absent"
+btn.innerText="Absent"
+
+}else{
+
+record.status="Present"
+leaveCount[name]--
+btn.className="present"
+btn.innerText="Present"
+
+}
+
+}else{
+
+attendance.push({
+name:name,
+date:today,
+status:"Absent"
+})
+
+leaveCount[name]++
+btn.className="absent"
+btn.innerText="Absent"
+
+}
+
+localStorage.setItem("attendance",JSON.stringify(attendance))
+localStorage.setItem("leaveCount",JSON.stringify(leaveCount))
+
+updateSummary()
+
+}
+
+/* SUMMARY */
+
+function updateSummary(){
+
+let today=new Date().toLocaleDateString()
+
+let todayData=attendance.filter(a=>a.date===today)
+
+let absent=todayData.filter(a=>a.status==="Absent").length
+let present=students.length-absent
+
+document.getElementById("summary").innerHTML=
+`Total ${students.length} | Present ${present} | Absent ${absent}`
+
+}
+
+/* SEND REPORT */
+
+function sendReport(){
+
+let now=new Date()
+
+let date=now.toLocaleDateString()
+let time=now.toLocaleTimeString()
+let month=now.toLocaleString('default',{month:'long'})
+
+let todayData=attendance.filter(a=>a.date===date)
+
+let absentList=todayData.map(a=>a.name)
+
+let present=students.length-absentList.length
+
+let msg="📊 Attendance Report\n\n"
+
+msg+="Date: "+date+"\n"
+msg+="Time: "+time+"\n"
+msg+="Month: "+month+"\n\n"
+
+msg+="Total: "+students.length+"\n"
+msg+="Present: "+present+"\n"
+msg+="Absent: "+absentList.length+"\n\n"
+
+msg+="Absentees\n"
+msg+="----------------\n"
+
+if(absentList.length===0){
+
+msg+="None\n"
+
+}else{
+
+absentList.forEach(name=>{
+
+let remaining=3-(leaveCount[name]||0)
+
+msg+=name+" | Absent\n"
+
+if(remaining>=0){
+msg+="Leave Remaining: "+remaining+"\n\n"
+}else{
+msg+="⚠ Leave Limit Exceeded\n\n"
+}
+
+})
+
+}
+
+/* COPY + OPEN WHATSAPP */
+
+navigator.clipboard.writeText(msg)
+
+window.open("https://wa.me/?text="+encodeURIComponent(msg))
+
+}
+
+/* RESET TODAY */
+
+function resetToday(){
+
+let today=new Date().toLocaleDateString()
+
+attendance=attendance.filter(a=>a.date!==today)
+
+students.forEach(name=>{
+let btn=document.getElementById("btn-"+name)
+btn.className="present"
+btn.innerText="Present"
+})
+
+localStorage.setItem("attendance",JSON.stringify(attendance))
+
+updateSummary()
+
+}
+
+/* RESET MONTH */
+
+function resetMonth(){
+
+leaveCount={}
+students.forEach(s=>leaveCount[s]=0)
+
+localStorage.setItem("leaveCount",JSON.stringify(leaveCount))
+
+alert("Monthly leave reset")
+
+}
+
+updateSummary()
+
+</script>
+
+</body>
+</html>
 <div class="controls">
 <button onclick="generateReport()">Generate</button>
 <button onclick="copyReport()">Copy</button>
