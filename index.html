@@ -21,24 +21,18 @@ border-radius:10px;
 box-shadow:0 0 10px rgba(0,0,0,0.1);
 }
 
-h1{
-text-align:center;
-}
-
 .student{
 display:flex;
 justify-content:space-between;
-align-items:center;
-padding:10px;
+padding:8px;
 border-bottom:1px solid #eee;
 }
 
 button{
-padding:8px 14px;
+padding:6px 12px;
 border:none;
 border-radius:6px;
 cursor:pointer;
-margin-top:5px;
 }
 
 .present{
@@ -46,7 +40,7 @@ background:#27ae60;
 color:white;
 }
 
-.leave{
+.absent{
 background:#e74c3c;
 color:white;
 }
@@ -54,13 +48,13 @@ color:white;
 .final{
 background:#2980b9;
 color:white;
+margin-top:10px;
 margin-right:5px;
 }
 
 .summary{
 margin-top:20px;
 font-weight:bold;
-font-size:16px;
 }
 
 table{
@@ -71,19 +65,13 @@ margin-top:20px;
 
 th,td{
 border:1px solid #ddd;
-padding:8px;
+padding:6px;
 text-align:center;
 }
 
 th{
 background:#2980b9;
 color:white;
-}
-
-.warning{
-color:red;
-font-size:12px;
-margin-left:5px;
 }
 
 </style>
@@ -93,7 +81,7 @@ margin-left:5px;
 
 <div class="container">
 
-<h1>Class Attendance</h1>
+<h2>Class Attendance</h2>
 
 <div id="students"></div>
 
@@ -102,12 +90,240 @@ margin-left:5px;
 <button class="final" onclick="generateReport()">Generate Report</button>
 <button class="final" onclick="copyReport()">Copy Report</button>
 <button class="final" onclick="openGroup()">Open WhatsApp Group</button>
-<button class="final" onclick="resetToday()">Reset Today Attendance</button>
+<button class="final" onclick="resetToday()">Reset Today</button>
 
 <div class="summary" id="summary"></div>
 
 <h3>Attendance History</h3>
 
+<table>
+
+<thead>
+<tr>
+<th>Date</th>
+<th>Name</th>
+<th>Status</th>
+</tr>
+</thead>
+
+<tbody id="history"></tbody>
+
+</table>
+
+</div>
+
+<script>
+
+/* STUDENTS */
+
+const students=[
+"Akilan","Arockia Raj","Kavibharathi","Gangadevi",
+"Sowndharya","Srisakthi","Ajantha","Tamilarasi",
+"Abirami","Ayishwarya","Sivagamasundari",
+"Anitamary","Swetha","Divyabharathi","Varsha","Kiruthiga"
+]
+
+let attendance=JSON.parse(localStorage.getItem("attendance"))||[]
+
+let reportText=""
+
+const container=document.getElementById("students")
+
+/* CREATE STUDENT LIST */
+
+students.forEach(name=>{
+
+let div=document.createElement("div")
+
+div.className="student"
+
+div.innerHTML=`
+
+<span>${name}</span>
+
+<button id="btn-${name}" class="present" onclick="toggle('${name}')">
+Present
+</button>
+
+`
+
+container.appendChild(div)
+
+})
+
+/* TOGGLE ABSENT */
+
+function toggle(name){
+
+let today=new Date().toLocaleDateString()
+
+let record=attendance.find(a=>a.name===name && a.date===today)
+
+let btn=document.getElementById("btn-"+name)
+
+if(record){
+
+if(record.status==="Present"){
+
+record.status="Absent"
+btn.className="absent"
+btn.innerText="Absent"
+
+}else{
+
+record.status="Present"
+btn.className="present"
+btn.innerText="Present"
+
+}
+
+}else{
+
+attendance.push({
+name:name,
+date:today,
+status:"Absent"
+})
+
+btn.className="absent"
+btn.innerText="Absent"
+
+}
+
+localStorage.setItem("attendance",JSON.stringify(attendance))
+
+render()
+
+}
+
+/* RESET TODAY */
+
+function resetToday(){
+
+let today=new Date().toLocaleDateString()
+
+attendance=attendance.filter(a=>a.date!==today)
+
+students.forEach(name=>{
+
+let btn=document.getElementById("btn-"+name)
+
+btn.className="present"
+btn.innerText="Present"
+
+})
+
+localStorage.setItem("attendance",JSON.stringify(attendance))
+
+render()
+
+}
+
+/* RENDER */
+
+function render(){
+
+let history=document.getElementById("history")
+
+history.innerHTML=""
+
+attendance.forEach(a=>{
+
+let tr=document.createElement("tr")
+
+tr.innerHTML=`
+
+<td>${a.date}</td>
+<td>${a.name}</td>
+<td>${a.status}</td>
+
+`
+
+history.appendChild(tr)
+
+})
+
+updateSummary()
+
+}
+
+/* SUMMARY */
+
+function updateSummary(){
+
+let today=new Date().toLocaleDateString()
+
+let todayData=attendance.filter(a=>a.date===today)
+
+let absent=todayData.filter(a=>a.status==="Absent").length
+
+let present=students.length-absent
+
+document.getElementById("summary").innerHTML=
+
+`Total: ${students.length} | Present: ${present} | Absent: ${absent}`
+
+}
+
+/* GENERATE REPORT */
+
+function generateReport(){
+
+let today=new Date().toLocaleDateString()
+
+let todayData=attendance.filter(a=>a.date===today)
+
+let absentList=todayData.map(a=>a.name)
+
+let presentList=students.filter(s=>!absentList.includes(s))
+
+let msg="📊 Attendance Report\n"
+
+msg+="Date: "+today+"\n\n"
+
+msg+=`Total: ${students.length} | Present: ${presentList.length} | Absent: ${absentList.length}\n\n`
+
+msg+="Name | Status\n"
+msg+="-------------------\n"
+
+students.forEach(name=>{
+
+let status=absentList.includes(name)?"Absent":"Present"
+
+msg+=name+" | "+status+"\n"
+
+})
+
+reportText=msg
+
+alert("Report Generated")
+
+}
+
+/* COPY */
+
+function copyReport(){
+
+navigator.clipboard.writeText(reportText)
+
+alert("Report Copied")
+
+}
+
+/* OPEN GROUP */
+
+function openGroup(){
+
+window.open("https://chat.whatsapp.com/K3yw8o9KfDqAZvm3NG1Wee")
+
+}
+
+render()
+
+</script>
+
+</body>
+</html>
 <table>
 
 <thead>
